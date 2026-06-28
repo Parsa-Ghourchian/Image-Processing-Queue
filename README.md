@@ -1,177 +1,164 @@
-# Image Processing Queue with FastAPI, MinIO, RabbitMQ, and Workers
+# Image Processing Queue
 
-This project implements an image processing queue using FastAPI, MinIO, RabbitMQ, and a worker service to reduce the size of images. The process starts by sending an image via FastAPI to MinIO, a high-performance object storage, where the image is stored. RabbitMQ is used to manage the communication and queuing of tasks, and a worker then processes the image to reduce its size before storing the processed image back into MinIO.
+A containerized, asynchronous image processing pipeline built with FastAPI, RabbitMQ, MinIO, and Python workers. Users upload an image through a REST API, the file is stored in MinIO, a task is queued in RabbitMQ, and a worker compresses the image and stores the processed version in a separate MinIO bucket.
 
-# Table of Contents
+## Overview
 
-Introduction
+This project demonstrates a practical message-queue-based architecture for image processing without blocking the main application flow. It is ideal for use cases such as:
 
-Technologies
+- Uploading and storing images asynchronously
+- Offloading heavy image transformation tasks to background workers
+- Building a scalable and modular processing pipeline with Docker
 
-Architecture Overview
+## Features
 
-Setup and Installation
+- FastAPI-based upload endpoint
+- Asynchronous task processing with RabbitMQ
+- Object storage with MinIO
+- Background worker for image compression
+- Docker Compose support for quick local deployment
+- Automatic bucket creation for original and processed images
 
-Prerequisites
+## Architecture
 
-Build Docker Containers
+```text
+Client --> FastAPI API --> MinIO (original-images) --> RabbitMQ --> Worker --> MinIO (processed-images)
+```
 
-Environment Variables
+### Components
 
-API Documentation
+- FastAPI API: Accepts image uploads and publishes processing jobs
+- RabbitMQ: Delivers tasks to the worker queue
+- MinIO: Stores original and processed images
+- Worker: Downloads the image, compresses it, and uploads the output
 
-Worker Functionality
+## Tech Stack
 
-How It Works
+- Python 3.11
+- FastAPI
+- Uvicorn
+- RabbitMQ
+- MinIO
+- Pillow
+- Docker Compose
 
-Testing
+## Project Structure
 
-# Introduction
-
-This project is designed to demonstrate a fully functional image processing pipeline using various modern tools and technologies. It is a complete solution for processing large images asynchronously while managing storage efficiently. It is ideal for applications that require image manipulation, such as resizing, compression, or format conversion, but without blocking the main application flow.
-
-# Technologies
-
-FastAPI: A modern, fast (high-performance) web framework for building APIs with Python 3.7+ based on standard Python type hints.
-
-MinIO: High-performance, distributed object storage system that is API compatible with Amazon S3.
-
-RabbitMQ: A message broker that enables applications to communicate with each other by sending messages through queues.
-
-Worker (Celery): A distributed task queue system used to handle background tasks like image processing.
-
-Pillow: A Python Imaging Library (PIL) fork used for processing images.
-
-Docker: For containerizing the application and making deployment easier.
-
-# Architecture Overview
-
-The system architecture can be divided into the following main components:
-
-1. FastAPI API Server
-
-Exposes an API endpoint for uploading images.
-
-Once an image is uploaded, it is stored in MinIO.
-
-The FastAPI application sends a message to RabbitMQ to trigger the image processing task.
-
-2. MinIO
-
-A scalable, high-performance object storage that holds the original and processed images.
-
-It is used as a private S3-compatible object storage to store images.
-
-3. RabbitMQ
-
-Acts as a messaging broker between the FastAPI API and the worker.
-
-Once an image is uploaded to MinIO, the API sends a message to RabbitMQ containing details of the image to be processed.
-
-4. Worker
-
-The worker listens to the RabbitMQ queue, retrieves the image information, processes the image (e.g., compresses it), and stores the processed image back into MinIO.
-
-# Setup and Installation
-
-Follow these steps to set up the project on your local machine.
-
-Prerequisites
-
-Docker and Docker Compose: Ensure Docker and Docker Compose are installed. You can install them from here
-
-and here
-
+```text
 .
+├── api/
+│   ├── app.py
+│   ├── Dockerfile
+│   └── requirements.txt
+├── worker/
+│   ├── worker.py
+│   ├── Dockerfile
+│   └── requirements.txt
+├── docker-compose.yml
+└── README.md
+```
 
-Python 3.8+: Required for FastAPI and the worker components.
+## Prerequisites
 
-Clone the Repository
-git clone https://github.com/yourusername/image-processing-queue.git
-cd image-processing-queue
+Make sure you have Docker and Docker Compose installed on your machine.
 
-Build Docker Containers
+- Docker: https://docs.docker.com/get-docker/
+- Docker Compose: https://docs.docker.com/compose/
 
-To build and start the application with Docker Compose:
+## Quick Start
 
-docker-compose up --build
+1. Clone the repository
 
+```bash
+git clone https://github.com/your-username/Image-Processing-Queue.git
+cd Image-Processing-Queue
+```
 
-This command will:
+2. Start the services
 
-Set up the FastAPI application.
+```bash
+docker compose up --build
+```
 
-Set up MinIO (for object storage).
+3. Access the services
 
-Set up RabbitMQ (for message queuing).
+- API documentation: http://localhost:8000/docs
+- MinIO Console: http://localhost:9001
+- RabbitMQ Management UI: http://localhost:15672
 
-Start the worker service (which processes the image).
+### Default credentials
 
-# Environment Variables
+- MinIO:
+  - Username: minioadmin
+  - Password: minioadmin123
+- RabbitMQ:
+  - Username: user
+  - Password: pass
 
-Ensure you have the following environment variables set in a .env file:
+## API Usage
 
-MINIO_URL=http://minio:9000
-MINIO_ACCESS_KEY=your-access-key
-MINIO_SECRET_KEY=your-secret-key
-RABBITMQ_HOST=rabbitmq
-RABBITMQ_PORT=5672
-RABBITMQ_QUEUE=image_queue
+The API exposes a single upload endpoint:
 
-# API Documentation
+```http
+POST /upload
+Content-Type: multipart/form-data
+```
 
-The FastAPI application exposes the following endpoint:
+### Request example
 
-POST /upload-image/
+```bash
+curl -X POST "http://localhost:8000/upload" \
+  -F "file=@/path/to/your-image.jpg"
+```
 
-This endpoint accepts an image file and stores it in MinIO. It triggers the processing of the image by the worker.
+### Response example
 
-Request:
+```json
+{
+  "message": "فایل دریافت شد و برای پردازش در صف قرار گرفت",
+  "object_name": "1712345678_my-image.jpg"
+}
+```
 
-file (form-data): The image file to upload.
+The uploaded image is stored in the MinIO bucket named `original-images`, and the processed output will appear in the `processed-images` bucket as a file named `compressed_<original_name>`.
 
-Response:
+## Environment Variables
 
-200 OK: If the image was successfully uploaded and queued for processing.
+The services are configured via environment variables in Docker Compose. The most important ones are:
 
-400 Bad Request: If there is an error with the image upload.
+| Variable | Description | Default |
+|---|---|---|
+| MINIO_ENDPOINT | MinIO service address | minio:9000 |
+| MINIO_ACCESS_KEY | MinIO access key | minioadmin |
+| MINIO_SECRET_KEY | MinIO secret key | minioadmin123 |
+| MINIO_BUCKET_ORIGINAL | Bucket for uploaded images | original-images |
+| MINIO_BUCKET_PROCESSED | Bucket for processed images | processed-images |
+| RABBITMQ_HOST | RabbitMQ host | rabbitmq |
+| RABBITMQ_PORT | RabbitMQ port | 5672 |
+| RABBITMQ_QUEUE | Queue used by the worker | image_tasks |
 
-Example Request using curl:
-curl -X 'POST' 'http://localhost:8000/upload-image/' \
--H 'accept: application/json' \
--H 'Content-Type: multipart/form-data' \
--F 'file=@path_to_your_image.jpg'
+## How It Works
 
-# Worker Functionality
+1. A client uploads an image to the FastAPI endpoint.
+2. The API validates the file type and stores it in MinIO.
+3. A message containing the object details is published to RabbitMQ.
+4. The worker consumes the message, downloads the image from MinIO, compresses it using Pillow, and uploads the processed result back to MinIO.
 
-The worker is responsible for processing images. Once it receives a message from RabbitMQ containing the image information, it performs the following steps:
+## Stopping the Services
 
-Fetches the image from MinIO: Downloads the original image from the MinIO server.
+```bash
+docker compose down
+```
 
-Processes the image: Using Pillow, the image is resized, compressed, or otherwise manipulated based on predefined rules.
+To remove the persistent MinIO data volume as well:
 
-Stores the processed image back in MinIO: The processed image is uploaded to a different bucket or folder within MinIO.
+```bash
+docker compose down -v
+```
 
-How It Works
+## Notes
 
-Upload: The user uploads an image through the FastAPI endpoint.
+- The current worker implementation compresses images to JPEG format with optimized quality settings.
+- The API automatically creates the required MinIO buckets on startup.
+- OpenAPI documentation is available at http://localhost:8000/docs when the API container is running.
 
-Storage: The image is stored in MinIO.
-
-Queueing: The FastAPI application sends a message to RabbitMQ with the image details (e.g., name, path).
-
-Processing: The worker listens to the RabbitMQ queue, processes the image (e.g., compressing it), and stores the processed image back into MinIO.
-
-# Testing
-
-You can test the entire pipeline by using the API's upload endpoint and verifying that the image is processed correctly.
-
-Start the application using Docker Compose.
-
-Use the /upload-image/ endpoint to upload an image.
-
-Verify that the processed image is stored in MinIO.
-
-You can also inspect the logs to see the worker's activity.
-
-<img width="1809" height="1006" alt="596184938-1407892d-ce63-49a7-a665-649e8fc06c5b" src="https://github.com/user-attachments/assets/46087074-77d3-4c28-a83e-2af9268d9ee0" />

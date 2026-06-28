@@ -174,4 +174,4 @@ Verify that the processed image is stored in MinIO.
 
 You can also inspect the logs to see the worker's activity.
 
-<img width="1809" height="1006" alt="1" src="https://github.com/user-attachments/assets/1407892d-ce63-49a7-a665-649e8fc06c5b" />
+<img width="1809" height="1006" alt="596184938-1407892d-ce63-49a7-a665-649e8fc06c5b" src="https://github.com/user-attachments/assets/46087074-77d3-4c28-a83e-2af9268d9ee0" />
